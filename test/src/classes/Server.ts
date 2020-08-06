@@ -7,7 +7,7 @@ import { Express } from 'express';
 type Error = globalThis.Error;
 type ServerOptions = { port?: number }
 
-class ServerManager {
+class Server {
     private express: Express = createExpress();
     private httpServer!: Http.Server;
     public socketServer!: SocketIO.Server;
@@ -18,13 +18,13 @@ class ServerManager {
         this.port = options.port || 0;
     }
 
-    public async openServer(): Promise<void> {
+    public async open(): Promise<void> {
         return new Promise((resolve, reject): void => {
             this.httpServer = this.express.listen(this.port);
 
             this.httpServer.once('error', (err: Error): void => {
-                this.closeServer();
-                setTimeout(() => this.openServer(), 1000);
+                this.close();
+                setTimeout(() => this.open(), 1000);
                 reject();
             });
 
@@ -41,7 +41,7 @@ class ServerManager {
         });
     }
 
-    public closeServer(): void {
+    public close(): void {
         console.log(`[${new Date().toISOString()}] server closed`);
         this.disconnectMaster();
         this.httpServer.close();
@@ -58,4 +58,4 @@ class ServerManager {
 
 
 
-export default ServerManager;
+export default Server;
