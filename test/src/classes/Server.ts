@@ -15,7 +15,7 @@ class Server {
     public port: number;
 
     constructor(options?: ServerOptions) {
-        this.port = options.port || 0;
+        this.port = options?.port || 0;
     }
 
     public async open(): Promise<void> {
