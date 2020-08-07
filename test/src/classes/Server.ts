@@ -1,24 +1,29 @@
 import * as createExpress from 'express';
 import * as SocketIO from 'socket.io';
-import * as SocketIOClient from 'socket.io-client';
 import * as Http from 'http';
+import * as ip from 'public-ip';
 import { Express } from 'express';
-
-type Error = globalThis.Error;
-type ServerOptions = { port?: number }
+import { ServerOptions, COLOR } from '../interfaces';
 
 class Server {
+    public ip!: string;
+    public port!: number;
+    public connection!: SocketIO.Server;
     private express: Express = createExpress();
     private httpServer!: Http.Server;
-    public socketServer!: SocketIO.Server;
-    public masterSocket!: SocketIOClient.Socket;
-    public port: number;
+    private name!: string;
+    private color!: COLOR;
 
-    constructor(options?: ServerOptions) {
+    constructor(options: ServerOptions) {
+        const colors: Array<string> = Object.keys(COLOR);
         this.port = options?.port || 0;
+        this.color = options?.loggingOptions?.color || COLOR[colors[Math.round(Math.random() * (colors.length - 1))]];
+        this.name = options?.loggingOptions?.name || 'Server';
     }
 
     public async open(): Promise<void> {
+        this.ip = await ip.v4();
+
         return new Promise((resolve, reject): void => {
             this.httpServer = this.express.listen(this.port);
 
@@ -29,12 +34,17 @@ class Server {
             });
 
             this.httpServer.once('listening', (): void => {
-                console.log(`[${new Date().toISOString()}] server opened`);
                 try {
-                    this.socketServer = SocketIO(this.httpServer, { serveClient: false });
+                    this.connection = SocketIO(this.httpServer, { serveClient: false });
+                    this.log(`┌─ Success open server ─────────────────────┐`);
+                    this.log(`│ Name        : ${this.name.padEnd(28)}│`);
+                    this.log(`│ IP Address  : ${this.ip.padEnd(28)}│`);
+                    this.log(`│ Port Number : ${this.port.toString().padEnd(28)}│`);
+                    this.log(`└───────────────────────────────────────────┘`);
                     resolve();
                 } catch (error) {
-                    console.log(error);
+                    this.log(error);
+                    this.close();
                     reject();
                 }
             });
@@ -42,20 +52,15 @@ class Server {
     }
 
     public close(): void {
-        console.log(`[${new Date().toISOString()}] server closed`);
-        this.disconnectMaster();
-        this.httpServer.close();
+        this.connection?.removeAllListeners();
+        this.connection?.close();
+        this.httpServer?.close();
+        this.log(`[${new Date().toISOString()}] Success close server`);
     }
 
-    public connectMaster(url: string): void {
-        this.masterSocket = SocketIOClient(url);
-    }
-
-    public disconnectMaster(): void {
-        this.masterSocket?.disconnect();
+    public log(...message: any): void {
+        console.log(this.color, `[${new Date().toISOString()}] (${this.name})`, ...message, COLOR.Reset);
     }
 }
-
-
 
 export default Server;
